@@ -62,29 +62,34 @@ fn spawn_map(
 
 fn move_player(
     mut transform: ParamSet<(Query<&mut Transform, With<Camera2d>>, Query<&mut Transform, With<Player>>)>,
-    keyboard_input: Res<ButtonInput<KeyCode>>
+    keyboard_input: Res<ButtonInput<KeyCode>>, time: Res<Time>,
 ) {
-    let mut final_pos: Vec3 = Vec3{x: 0.0, y: 0.0, z: 0.0};
+    let speed = 200.0;
+    let mut displacement: Vec3 = Vec3::ZERO;
     for mut camera in transform.p0().iter_mut(){
         if keyboard_input.pressed(KeyCode::KeyD){
-            camera.translation.x += 10.0;
+            displacement.x += (speed * time.delta_secs());
         }
         if keyboard_input.pressed(KeyCode::KeyA){
-            camera.translation.x -= 10.0;
+            displacement.x -= (speed * time.delta_secs());
         }
         if keyboard_input.pressed(KeyCode::KeyW){
-            camera.translation.y += 10.0;
+            displacement.y += (speed * time.delta_secs());
         }
         if keyboard_input.pressed(KeyCode::KeyS){
-            camera.translation.y -= 10.0;
+            displacement.y -= (speed * time.delta_secs());
         }
-        final_pos = camera.translation;
+
+        camera.translation +=  displacement;
+        displacement = camera.translation;
     }
 
+    
     for mut player in transform.p1().iter_mut(){
-        player.translation = final_pos;
+        player.translation = displacement;
         player.translation.z = 1.0;
     }
+     
     
 }
 
