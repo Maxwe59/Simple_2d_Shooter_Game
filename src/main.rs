@@ -69,9 +69,11 @@ fn move_player(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     mut player: Query<&mut Player>,
+    map: Res<Map>,
 ) {
     let speed: f32 = 200.0;
     let mut displacement: Vec3 = Vec3::ZERO;
+    let map_dimensions_half = (map.dimensions.x / 2.0, map.dimensions.y / 2.0);
 
     if keyboard_input.pressed(KeyCode::KeyD) {
         displacement.x += (speed * time.delta_secs());
@@ -89,13 +91,31 @@ fn move_player(
     //displace camera from keyboard inputs
     for mut camera_transform in transform.p0().iter_mut() {
         //check if player is at the edge of map
-        if (-500.0 <= camera_transform.translation.x && camera_transform.translation.x <= 500.0)
+
+        //this code is so ugly. please fix this later.
+        if (-(map_dimensions_half.0) >= camera_transform.translation.x)
+            || ((map_dimensions_half.0) <= camera_transform.translation.x)
+            || (-(map_dimensions_half.1) >= camera_transform.translation.y)
+            || ((map_dimensions_half.1) <= camera_transform.translation.y)
         {
+            if (-(map_dimensions_half.1) >= camera_transform.translation.x) {
+                camera_transform.translation.x += 0.01;
+                displacement = camera_transform.translation;
+            }
+            if ((map_dimensions_half.1) <= camera_transform.translation.x) {
+                camera_transform.translation.x -= 0.01;
+                displacement = camera_transform.translation;
+            }
+            if (-(map_dimensions_half.1) >= camera_transform.translation.y) {
+                camera_transform.translation.y += 0.01;
+                displacement = camera_transform.translation;
+            }
+            if ((map_dimensions_half.1) <= camera_transform.translation.y) {
+                camera_transform.translation.y -= 0.01;
+                displacement = camera_transform.translation;
+            }
+        } else {
             camera_transform.translation += displacement;
-            displacement = camera_transform.translation;
-        } 
-        else {
-            camera_transform.translation.x -= 0.01;
             displacement = camera_transform.translation;
         }
     }
