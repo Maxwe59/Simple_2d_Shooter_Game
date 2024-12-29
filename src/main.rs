@@ -12,16 +12,17 @@ player movement (circle with no rotation),
 map movement and offset
 */
 
-use bevy::{prelude::*};
+use bevy::prelude::*;
 
 #[derive(Component)]
 struct Player {
-    global_pos: Vec3,
+    global_pos: Vec2,
 }
 
 #[derive(Resource)]
 struct Map {
     dimensions: Vec2,
+    //create a matrix for the map
 }
 
 struct Object {}
@@ -31,14 +32,14 @@ fn spawn_player(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    commands.spawn((Camera2d::default(), Transform::from_xyz(0.0, 0.0, 0.0)));
+    let player_global_pos = Vec2::ZERO;
+    commands.spawn((
+        Camera2d::default(),
+        Transform::from_xyz(player_global_pos.x, player_global_pos.y, 0.0),
+    ));
     commands.spawn((
         Player {
-            global_pos: Vec3 {
-                x: 0.0,
-                y: 0.0,
-                z: 1.0,
-            },
+            global_pos: player_global_pos,
         },
         Mesh2d(meshes.add(Circle::new(45.0))),
         MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::BLACK))),
@@ -61,36 +62,56 @@ fn spawn_map(
 }
 
 fn move_player(
-    mut transform: ParamSet<(Query<&mut Transform, With<Camera2d>>, Query<&mut Transform, With<Player>>)>,
-    keyboard_input: Res<ButtonInput<KeyCode>>, time: Res<Time>,
+    mut transform: ParamSet<(
+        Query<&mut Transform, With<Camera2d>>,
+        Query<&mut Transform, With<Player>>,
+    )>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    mut player: Query<&mut Player>,
 ) {
-    let speed = 200.0;
+    let speed: f32 = 200.0;
     let mut displacement: Vec3 = Vec3::ZERO;
-    for mut camera in transform.p0().iter_mut(){
-        if keyboard_input.pressed(KeyCode::KeyD){
-            displacement.x += (speed * time.delta_secs());
-        }
-        if keyboard_input.pressed(KeyCode::KeyA){
-            displacement.x -= (speed * time.delta_secs());
-        }
-        if keyboard_input.pressed(KeyCode::KeyW){
-            displacement.y += (speed * time.delta_secs());
-        }
-        if keyboard_input.pressed(KeyCode::KeyS){
-            displacement.y -= (speed * time.delta_secs());
-        }
 
-        camera.translation +=  displacement;
-        displacement = camera.translation;
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        displacement.x += (speed * time.delta_secs());
+    }
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        displacement.x -= (speed * time.delta_secs());
+    }
+    if keyboard_input.pressed(KeyCode::KeyW) {
+        displacement.y += (speed * time.delta_secs());
+    }
+    if keyboard_input.pressed(KeyCode::KeyS) {
+        displacement.y -= (speed * time.delta_secs());
     }
 
-    
-    for mut player in transform.p1().iter_mut(){
-        player.translation = displacement;
-        player.translation.z = 1.0;
+    //displace camera from keyboard inputs
+    for mut camera_transform in transform.p0().iter_mut() {
+        //check if player is at the edge of map
+        if (-500.0 <= camera_transform.translation.x && camera_transform.translation.x <= 500.0)
+        {
+            camera_transform.translation += displacement;
+            displacement = camera_transform.translation;
+        } 
+        else {
+            camera_transform.translation.x -= 0.01;
+            displacement = camera_transform.translation;
+        }
     }
-     
-    
+    //displace player with camera displacement
+    for mut player_transform in transform.p1().iter_mut() {
+        player_transform.translation = displacement;
+        player_transform.translation.z = 1.0;
+    }
+
+    //update global player pos
+    for mut player_inst in player.iter_mut() {
+        player_inst.global_pos = Vec2 {
+            x: displacement.x,
+            y: displacement.y,
+        };
+    }
 }
 
 fn main() {
