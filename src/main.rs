@@ -13,10 +13,11 @@ map movement and offset
 */
 
 use bevy::prelude::*;
+use rand::Rng;
 
 #[derive(Component)]
 struct Player {
-    global_pos: Vec2,
+    speed: f32,
 }
 
 #[derive(Resource)]
@@ -25,23 +26,31 @@ struct Map {
     //create a matrix for the map
 }
 
-struct Object {}
-
 fn spawn_player(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    map: Res<Map>,
 ) {
-    let player_global_pos = Vec2::ZERO;
+    //random coord generation
+    let mut rng = rand::thread_rng();
+    let xrange = (map.dimensions.x/2.0) as i32;
+    let yrange = (map.dimensions.y/2.0) as i32;
+    let rand_coords: Vec2 = Vec2 {
+        x: (rng.gen_range(-xrange..xrange)) as f32,
+        y: (rng.gen_range(-yrange..yrange)) as f32,
+    };
+    //coords player will spawn at
+    let player_global_pos = rand_coords;
     commands.spawn((
         Camera2d::default(),
         Transform::from_xyz(player_global_pos.x, player_global_pos.y, 0.0),
     ));
     commands.spawn((
         Player {
-            global_pos: player_global_pos,
+            speed: 200.0,
         },
-        Mesh2d(meshes.add(Circle::new(45.0))),
+        Mesh2d(meshes.add(Circle::new(30.0))),
         MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::BLACK))),
         Transform::from_xyz(0.0, 0.0, 1.0),
     ));
@@ -68,24 +77,30 @@ fn move_player(
     )>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    mut player: Query<&mut Player>,
     map: Res<Map>,
+    player: Query<&Player>
 ) {
-    let speed: f32 = 200.0;
+    //get player speed
+    let mut speed: f32 = 0.0;
+    for item in player.iter(){
+        speed = item.speed;
+    }
+
+    //displacement calculations
     let mut displacement: Vec3 = Vec3::ZERO;
     let map_dimensions_half = (map.dimensions.x / 2.0, map.dimensions.y / 2.0);
 
     if keyboard_input.pressed(KeyCode::KeyD) {
-        displacement.x += (speed * time.delta_secs());
+        displacement.x += speed * time.delta_secs();
     }
     if keyboard_input.pressed(KeyCode::KeyA) {
-        displacement.x -= (speed * time.delta_secs());
+        displacement.x -= speed * time.delta_secs();
     }
     if keyboard_input.pressed(KeyCode::KeyW) {
-        displacement.y += (speed * time.delta_secs());
+        displacement.y += speed * time.delta_secs();
     }
     if keyboard_input.pressed(KeyCode::KeyS) {
-        displacement.y -= (speed * time.delta_secs());
+        displacement.y -= speed * time.delta_secs();
     }
 
     //displace camera from keyboard inputs
@@ -98,19 +113,19 @@ fn move_player(
             || (-(map_dimensions_half.1) >= camera_transform.translation.y)
             || ((map_dimensions_half.1) <= camera_transform.translation.y)
         {
-            if (-(map_dimensions_half.1) >= camera_transform.translation.x) {
+            if -(map_dimensions_half.1) >= camera_transform.translation.x {
                 camera_transform.translation.x += 0.01;
                 displacement = camera_transform.translation;
             }
-            if ((map_dimensions_half.1) <= camera_transform.translation.x) {
+            if (map_dimensions_half.1) <= camera_transform.translation.x {
                 camera_transform.translation.x -= 0.01;
                 displacement = camera_transform.translation;
             }
-            if (-(map_dimensions_half.1) >= camera_transform.translation.y) {
+            if -(map_dimensions_half.1) >= camera_transform.translation.y {
                 camera_transform.translation.y += 0.01;
                 displacement = camera_transform.translation;
             }
-            if ((map_dimensions_half.1) <= camera_transform.translation.y) {
+            if (map_dimensions_half.1) <= camera_transform.translation.y {
                 camera_transform.translation.y -= 0.01;
                 displacement = camera_transform.translation;
             }
@@ -125,13 +140,6 @@ fn move_player(
         player_transform.translation.z = 1.0;
     }
 
-    //update global player pos
-    for mut player_inst in player.iter_mut() {
-        player_inst.global_pos = Vec2 {
-            x: displacement.x,
-            y: displacement.y,
-        };
-    }
 }
 
 fn main() {
