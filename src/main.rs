@@ -11,16 +11,15 @@ Map rendering, collisions with objects
 player movement (circle with no rotation),
 map movement and offset
 */
+//USE: $env:WGPU_BACKEND = "vulkan"; cargo run
 //use bevy::prelude::*;
 use bevy::prelude::*;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
-
 use rand::Rng;
 
 #[derive(Component)]
 struct Player {
     speed: f32,
-    direction: Vec2,
+    direction: Vec2
 }
 
 #[derive(Resource)]
@@ -65,7 +64,7 @@ impl Map {
             }
             self.grid.push(temp_vec);
             tile_placement.y -= self.grid_size.y;
-            tile_placement.x = -((self.dimensions.0 - self.grid_size.x) / 2.0);
+            tile_placement.x =  -((self.dimensions.0 - self.grid_size.x) / 2.0);
         }
         //generates one single row of the grid
         //should populate self.grid with coordinates for each rectangle
@@ -79,6 +78,7 @@ fn spawn_map(
     mut meshes: ResMut<Assets<Mesh>>,
     mut map: ResMut<Map>,
 ) {
+    
     map.generate_grid();
     for row in &map.grid {
         for item in row {
@@ -89,6 +89,7 @@ fn spawn_map(
                 Transform::from_xyz(item.x, item.y, 0.0), //FIX LATER
             ));
         }
+        
     }
 }
 
@@ -102,46 +103,49 @@ fn spawn_player(
     let mut rng = rand::thread_rng();
     let xrange = (map.dimensions.0 / 2.0) as i32;
     let yrange = (map.dimensions.1 / 2.0) as i32;
-    let rand_coords: Vec3 = Vec3 {
+    let rand_coords: Vec2 = Vec2 {
         x: (rng.gen_range(-xrange..xrange)) as f32,
         y: (rng.gen_range(-yrange..yrange)) as f32,
-        z: 1.0,
     };
-    //coords player will spawn at
-    let player_global_pos = rand_coords;
     commands.spawn((
         Camera2d::default(),
-        Transform::from_xyz(player_global_pos.x, player_global_pos.y, 0.0),
+        Transform::from_xyz(rand_coords.x, rand_coords.y, 0.0), 
     ));
     commands.spawn((
-        Player {
-            speed: 200.0,
-            direction: Vec2::new(1.0,1.0).normalize(),
-        },
-        Mesh2d(meshes.add(Rectangle::new(60.0, 60.0))), //radius: 30
+        Player { speed: 200.0, direction: Vec2::new(0.0,1.0)},
+        Mesh2d(meshes.add(Rectangle::new(60.0,60.0))), //Circle::new(30.0)
         MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::BLACK))),
-        Transform {
-            translation: player_global_pos,
-            ..Default::default()
-        },
+        Transform::from_xyz(0.0, 0.0, 1.0),
     ));
 }
+
 
 fn rotate_player(
     mut transform: Query<(&mut Transform, &mut Player)>,
     mut cursor: EventReader<CursorMoved>,
+    win_res: Single<&mut Window>
 ) {
-    let mut rotation_vec = Vec2::ZERO;
+    let mut cursor_vec = Vec2::ZERO;
+    let dimensions: Vec2 = Vec2::new(win_res.width(), win_res.height());
     for event in cursor.read() {
-        rotation_vec = event.position.normalize();
+        cursor_vec = event.position;
+        cursor_vec.x = cursor_vec.x - (dimensions.x/2.0); 
+        cursor_vec.y = (dimensions.y/2.0) - cursor_vec.y;
     }
-    for (mut player_transform, mut player) in transform.iter_mut(){
-        let player_direction = player.direction;
-        player_transform.rotate(Quat::from_rotation_arc_2d(player_direction, rotation_vec));
-        player.direction = rotation_vec;
+    if cursor_vec == Vec2::ZERO{return};
+    cursor_vec = cursor_vec.normalize();
+    
+    for (mut player_transform, mut player) in transform.iter_mut() {
+        let player_vec = player.direction.normalize();
+        player_transform.rotate(Quat::from_rotation_arc_2d(player_vec, cursor_vec));
+        player.direction = cursor_vec;
     }
-
+    
+    
 }
+
+
+
 
 fn move_player(
     mut transform: ParamSet<(
@@ -187,19 +191,19 @@ fn move_player(
             || ((map_dimensions_half.1) <= camera_transform.translation.y)
         {
             if -(map_dimensions_half.1) >= camera_transform.translation.x {
-                camera_transform.translation.x += 0.01;
+                camera_transform.translation.x += 0.1;
                 displacement = camera_transform.translation;
             }
             if (map_dimensions_half.1) <= camera_transform.translation.x {
-                camera_transform.translation.x -= 0.01;
+                camera_transform.translation.x -= 0.1;
                 displacement = camera_transform.translation;
             }
             if -(map_dimensions_half.1) >= camera_transform.translation.y {
-                camera_transform.translation.y += 0.01;
+                camera_transform.translation.y += 0.1;
                 displacement = camera_transform.translation;
             }
             if (map_dimensions_half.1) <= camera_transform.translation.y {
-                camera_transform.translation.y -= 0.01;
+                camera_transform.translation.y -= 0.1;
                 displacement = camera_transform.translation;
             }
         } else {
@@ -228,6 +232,7 @@ fn main() {
             }),
             ..default()
         }))
-        .add_plugins(WorldInspectorPlugin::new())
         .run();
 }
+
+
