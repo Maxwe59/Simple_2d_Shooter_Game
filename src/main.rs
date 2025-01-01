@@ -14,6 +14,7 @@ player hands
 //USE: $env:WGPU_BACKEND = "vulkan"; cargo run
 //use bevy::prelude::*;
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use rand::Rng;
 
 #[derive(Component, Clone, Copy)]
@@ -22,13 +23,12 @@ struct Player {
     size: f32,
     hand_size: f32,
     direction: Vec2,
-    left_hand_offset: Vec2,
-    right_hand_offset: Vec2,
+    left_hand: Hand,
+    right_hand: Hand,
     body_color: Color,
-    hand_color: Color,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct Hand{
     offset: Vec2,
     color: Color
@@ -41,17 +41,16 @@ impl Player {
         x_offset: f32,
         y_offset: f32,
         body_colour: Color,
-        hand_colour: Color,
+        hand_colour: Color
     ) -> Self {
         Player {
             speed: speed,
             size: size,
-            hand_size: size / 2.5,
+            hand_size: size / 3.0,
             direction: Vec2::new(0.0, 1.0),
-            left_hand_offset: Vec2::new(-x_offset, y_offset),
-            right_hand_offset: Vec2::new(x_offset, y_offset),
+            left_hand: Hand{offset: Vec2::new(-x_offset, y_offset), color: hand_colour},
+            right_hand: Hand{offset: Vec2::new(x_offset, y_offset), color: hand_colour},
             body_color: body_colour,
-            hand_color: hand_colour,
         }
     }
 }
@@ -161,28 +160,28 @@ fn spawn_player(
         .with_children(|parent| {
             parent.spawn(
                 //left hand
-                (
+                (player_comp.left_hand,
                     Mesh2d(meshes.add(Circle::new(player_comp.hand_size))),
                     MeshMaterial2d(
-                        materials.add(ColorMaterial::from_color(player_comp.hand_color)),
+                        materials.add(ColorMaterial::from_color(player_comp.left_hand.color)),
                     ),
                     Transform::from_xyz(
-                        player_comp.left_hand_offset.x,
-                        player_comp.left_hand_offset.y,
+                        player_comp.left_hand.offset.x,
+                        player_comp.left_hand.offset.y,
                         1.0,
                     ),
                 ),
             );
             parent.spawn(
                 //right hand
-                (
+                (player_comp.right_hand,
                     Mesh2d(meshes.add(Circle::new(player_comp.hand_size))),
                     MeshMaterial2d(
-                        materials.add(ColorMaterial::from_color(player_comp.hand_color)),
+                        materials.add(ColorMaterial::from_color(player_comp.right_hand.color)),
                     ),
                     Transform::from_xyz(
-                        player_comp.right_hand_offset.x,
-                        player_comp.right_hand_offset.y,
+                        player_comp.right_hand.offset.x,
+                        player_comp.right_hand.offset.y,
                         1.0,
                     ),
                 ),
@@ -285,36 +284,72 @@ fn move_player(
     }
 }
 
-fn use_rifle(
+fn use_rifle( //so many queries...
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     key_inputs: Res<ButtonInput<KeyCode>>,
     player_entity: Query<Entity, With<Player>>,
-    get_player_hands: Query<&mut Transform, With<Hand>>,
+    mut get_hands: Query<&mut Transform, With<Hand>>,
+    get_player: Query<&Player>,
     rifle_entity: Query<Entity, With<Rifle>>,
 ) {
     let new_rifle: Rifle;
+    let hand_position1 = Vec2::new(0.0,32.0);
+    let hand_position2 = Vec2::new(7.5,65.0);
+
     //if 1 keybind is pressed: deploy weapon, transform player hands
     if key_inputs.just_pressed(KeyCode::Digit1) && rifle_entity.is_empty() {
         new_rifle = Rifle {
-            length: 50.0,
+            length: 65.0,
             color: Color::BLACK,
         };
         let player_entity = player_entity.single();
+        
         commands.entity(player_entity).with_children(|parent| {
             parent.spawn((
                 new_rifle,
-                Mesh2d(meshes.add(Capsule2d::new(7.0, new_rifle.length))),
+                Mesh2d(meshes.add(Capsule2d::new(5.5, new_rifle.length))),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(new_rifle.color))),
-                Transform::from_xyz(0.0, 50.0, -1.0),
+                Transform::from_xyz(0.0, 55.0, -1.0),
             ));
         });
+
+        //switch hand orientation
+        let player_comp = get_player.single();
+        for mut hand in get_hands.iter_mut(){
+            let current_hands = hand.translation.truncate(); //converts to Vec2
+            let z_pos = hand.translation.z;
+            //checks if current hand is right hand
+            if player_comp.right_hand.offset == current_hands{
+                hand.translation = hand_position1.extend(z_pos);
+            }
+            //checks if current hand is left hand
+            if player_comp.left_hand.offset == current_hands{
+                hand.translation = hand_position2.extend(z_pos);
+            }
+
+           
+            
+        }
     }
     //if 1 keybind is pressed and weapon is deployed: revert to default transform
     else if (key_inputs.just_pressed(KeyCode::Digit1)) && (!rifle_entity.is_empty()) {
+        //despawn entity
         let rifle_despawn = rifle_entity.single();
         commands.entity(rifle_despawn).despawn();
+
+        //reset hand position
+        for mut hand in get_hands.iter_mut(){
+            let original_position_left = get_player.single().left_hand.offset;
+            let original_position_right = get_player.single().right_hand.offset;
+            if hand_position1 == hand.translation.truncate(){
+                hand.translation = Vec3::new(original_position_left.x, original_position_left.y, hand.translation.z);
+            }
+            if hand_position2 == hand.translation.truncate(){
+                hand.translation = Vec3::new(original_position_right.x, original_position_right.y, hand.translation.z);
+            }
+        }
     }
 }
 
@@ -333,5 +368,6 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugins(WorldInspectorPlugin::new())
         .run();
 }
