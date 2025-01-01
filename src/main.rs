@@ -19,18 +19,33 @@ use rand::Rng;
 #[derive(Component, Clone, Copy)]
 struct Player {
     speed: f32,
+    size: f32,
+    hand_size: f32,
     direction: Vec2,
     left_hand_offset: Vec2,
     right_hand_offset: Vec2,
+    body_color: Color,
+    hand_color: Color,
 }
 
 impl Player {
-    fn new_symetric(speed: f32, x_offset: f32, y_offset: f32) -> Self {
+    fn new_symetric(
+        speed: f32,
+        size: f32,
+        x_offset: f32,
+        y_offset: f32,
+        body_colour: Color,
+        hand_colour: Color,
+    ) -> Self {
         Player {
             speed: speed,
+            size: size,
+            hand_size: size / 2.5,
             direction: Vec2::new(0.0, 1.0),
             left_hand_offset: Vec2::new(-x_offset, y_offset),
             right_hand_offset: Vec2::new(x_offset, y_offset),
+            body_color: body_colour,
+            hand_color: hand_colour,
         }
     }
 }
@@ -122,36 +137,41 @@ fn spawn_player(
         Camera2d::default(),
         Transform::from_xyz(rand_coords.x, rand_coords.y, 0.0),
     ));
-    let player_comp = Player::new_symetric(200.0, 23.0, 20.0);
+    let player_color = Color::srgb(0.2, 0.2, 0.2);
+    let player_comp = Player::new_symetric(200.0, 30.0, 23.0, 20.0, player_color, Color::BLACK);
     commands
         .spawn((
             player_comp,
-            Mesh2d(meshes.add(Circle::new(30.0))), //Circle::new(30.0)
-            MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgb(0.2, 0.2, 0.2)))),
+            Mesh2d(meshes.add(Circle::new(player_comp.size))), //Circle::new(30.0)
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(player_comp.body_color))),
             Transform::from_xyz(0.0, 0.0, 1.0),
         ))
         .with_children(|parent| {
             parent.spawn(
                 //left hand
                 (
-                    Mesh2d(meshes.add(Circle::new(12.0))),
-                    MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::BLACK))),
+                    Mesh2d(meshes.add(Circle::new(player_comp.hand_size))),
+                    MeshMaterial2d(
+                        materials.add(ColorMaterial::from_color(player_comp.hand_color)),
+                    ),
                     Transform::from_xyz(
                         player_comp.left_hand_offset.x,
                         player_comp.left_hand_offset.y,
-                        2.0,
+                        1.0,
                     ),
                 ),
             );
             parent.spawn(
                 //right hand
                 (
-                    Mesh2d(meshes.add(Circle::new(12.0))),
-                    MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::BLACK))),
+                    Mesh2d(meshes.add(Circle::new(player_comp.hand_size))),
+                    MeshMaterial2d(
+                        materials.add(ColorMaterial::from_color(player_comp.hand_color)),
+                    ),
                     Transform::from_xyz(
                         player_comp.right_hand_offset.x,
                         player_comp.right_hand_offset.y,
-                        2.0,
+                        1.0,
                     ),
                 ),
             );
