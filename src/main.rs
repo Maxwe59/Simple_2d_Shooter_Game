@@ -28,6 +28,12 @@ struct Player {
     hand_color: Color,
 }
 
+#[derive(Component)]
+struct Hand{
+    offset: Vec2,
+    color: Color
+}
+
 impl Player {
     fn new_symetric(
         speed: f32,
@@ -48,6 +54,12 @@ impl Player {
             hand_color: hand_colour,
         }
     }
+}
+
+#[derive(Component, Clone, Copy)]
+struct Rifle {
+    length: f32,
+    color: Color,
 }
 
 #[derive(Resource)]
@@ -113,7 +125,7 @@ fn spawn_map(
                 //spawns in a single block from the map grid
                 Mesh2d(meshes.add(Rectangle::new(map.grid_size.x, map.grid_size.y))),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::WHITE))),
-                Transform::from_xyz(item.x, item.y, 0.0), //FIX LATER
+                Transform::from_xyz(item.x, item.y, -5.0), //FIX LATER
             ));
         }
     }
@@ -273,6 +285,39 @@ fn move_player(
     }
 }
 
+fn use_rifle(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    key_inputs: Res<ButtonInput<KeyCode>>,
+    player_entity: Query<Entity, With<Player>>,
+    get_player_hands: Query<&mut Transform, With<Hand>>,
+    rifle_entity: Query<Entity, With<Rifle>>,
+) {
+    let new_rifle: Rifle;
+    //if 1 keybind is pressed: deploy weapon, transform player hands
+    if key_inputs.just_pressed(KeyCode::Digit1) && rifle_entity.is_empty() {
+        new_rifle = Rifle {
+            length: 50.0,
+            color: Color::BLACK,
+        };
+        let player_entity = player_entity.single();
+        commands.entity(player_entity).with_children(|parent| {
+            parent.spawn((
+                new_rifle,
+                Mesh2d(meshes.add(Capsule2d::new(7.0, new_rifle.length))),
+                MeshMaterial2d(materials.add(ColorMaterial::from_color(new_rifle.color))),
+                Transform::from_xyz(0.0, 50.0, -1.0),
+            ));
+        });
+    }
+    //if 1 keybind is pressed and weapon is deployed: revert to default transform
+    else if (key_inputs.just_pressed(KeyCode::Digit1)) && (!rifle_entity.is_empty()) {
+        let rifle_despawn = rifle_entity.single();
+        commands.entity(rifle_despawn).despawn();
+    }
+}
+
 fn main() {
     App::new()
         .insert_resource(Map::new_square(50.0, 10))
@@ -280,6 +325,7 @@ fn main() {
         .add_systems(Startup, spawn_player)
         .add_systems(Update, move_player)
         .add_systems(Update, rotate_player)
+        .add_systems(Update, use_rifle)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "shooter_2d".to_string(),
