@@ -34,9 +34,10 @@ struct Hand {
     color: Color,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 struct Bullet {
     direction: Vec2,
+    spawn_point: Vec2
 }
 
 impl Player {
@@ -439,30 +440,43 @@ fn spawn_bullets(
     rifle: Query<&Rifle>,
     time: Res<Time>,
     player: Query<&Player>,
-    mut transform_set: ParamSet<(Query<(&mut Transform, &Bullet)>, Query<&mut Transform, With<Player>>)>
+    mut transform_set: ParamSet<(Query<(Entity, &mut Transform, &Bullet)>, Query<&mut Transform, With<Player>>)>,
 ) {
     let bullet_radius = 5.0;
-    let speed: f32 = 300.0;
+    let bullet_range: f32 = 450.0;
+    let bullet_speed: f32 = 600.0;
     let player_direction = player.single().direction;
     let player_position = transform_set.p1().single().translation;
     if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() {
+        let rifle_info = rifle.single();
+        let scaled_direction = player_direction * (rifle_info.length + (rifle_info.y_offset/2.0));
+        let bullet_component = Bullet {
+            direction: player_direction.normalize(),
+            spawn_point: Vec2::new(player_position.x+scaled_direction.x, player_position.y+scaled_direction.y)
+        };
         //single shot
         let bullet_bundle = (
-            Bullet {
-                direction: player_direction.normalize(),
-            },
+            bullet_component,
             Mesh2d(meshes.add(Circle::new(bullet_radius))),
             MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::BLACK))),
-            Transform::from_xyz(player_position.x, player_position.y, player_position.z),
+            Transform::from_xyz(bullet_component.spawn_point.x, bullet_component.spawn_point.y, 0.0),
         );
         commands.spawn(bullet_bundle);
     }
 
-    for (mut bullet_transform, bullet) in transform_set.p0().iter_mut() {
-        //despawn bullet after x distance
+    for (bullet_entity, mut bullet_transform, bullet) in transform_set.p0().iter_mut() {
         //launch bullet in player_direction vec
-        let z_pos = 10.0;
-        bullet_transform.translation += speed * bullet.direction.extend(z_pos) * time.delta_secs();
+        bullet_transform.translation.x += bullet_speed * bullet.direction.x * time.delta_secs();
+        bullet_transform.translation.y += bullet_speed * bullet.direction.y * time.delta_secs();
+
+        //calculate the bullet's distance from its spawning point
+        let x_displacement = bullet_transform.translation.x - bullet.spawn_point.x;
+        let y_displacement = bullet_transform.translation.y - bullet.spawn_point.y;
+        let distance_from_spawn = ((x_displacement* x_displacement)+(y_displacement*y_displacement)).sqrt();
+        if distance_from_spawn>=bullet_range{
+            commands.entity(bullet_entity).despawn();
+        }
+        
     }
 }
 
