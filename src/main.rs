@@ -34,6 +34,11 @@ struct Hand {
     color: Color,
 }
 
+#[derive(Component)]
+struct Bullet {
+    direction: Vec2,
+}
+
 impl Player {
     fn new_symetric(
         speed: f32,
@@ -68,9 +73,10 @@ struct Rifle {
     color: Color,
     y_offset: f32,
     hand1: Vec2,
-    hand2: Vec2
+    hand2: Vec2,
 
-    
+    //for animation purposes
+    recoil_direction: bool,
 }
 
 #[derive(Resource)]
@@ -298,7 +304,62 @@ fn move_player(
     }
 }
 
-fn use_rifle(
+//unfinished function. fix by making rifle child of hands, transforming hands
+fn shoot_rifle(
+    mut rifle_transform: Query<(&mut Transform, &mut Rifle)>,
+    rifle_entity: Query<Entity, With<Rifle>>,
+    hand_entities: Query<Entity, With<Hand>>,
+    player_entity: Query<Entity, With<Player>>,
+    keyboard_input: Res<ButtonInput<MouseButton>>,
+    time: Res<Time>,
+    mut commands: Commands,
+) {
+    //checks if no rifle is being spawned. if a rifle is spawned, play the animation
+    if !rifle_transform.is_empty() && keyboard_input.pressed(MouseButton::Left) {
+        //add hands as child of rifle so hands transform with rifle movement.
+
+        for hand in hand_entities.iter() {
+            commands.entity(rifle_entity.single()).add_child(hand);
+        }
+
+        let mut rifle = rifle_transform.single_mut();
+        let fire_speed = 250.0;
+        if rifle.1.y_offset <= rifle.0.translation.y {
+            rifle.1.recoil_direction = false;
+        } else if rifle.0.translation.y <= 50.0 {
+            //change this number later
+            rifle.1.recoil_direction = true;
+        }
+
+        if !rifle.1.recoil_direction {
+            rifle.0.translation.y -= fire_speed * time.delta_secs(); //recoil in y direction
+        } else if rifle.1.recoil_direction {
+            //change value later
+            rifle.0.translation.y += fire_speed * time.delta_secs();
+        }
+    }
+
+    if keyboard_input.just_released(MouseButton::Left) && !rifle_transform.is_empty() {
+        //remove hands as children of rifle1
+
+        commands.entity(rifle_entity.single()).clear_children();
+        if !hand_entities.is_empty() {
+            for hand in hand_entities.iter() {
+                commands.entity(player_entity.single()).add_child(hand);
+            }
+        }
+
+        let mut rifle = rifle_transform.single_mut();
+        //reset rifle position
+        rifle.0.translation = Vec3::new(
+            rifle.0.translation.x,
+            rifle.1.y_offset,
+            rifle.0.translation.z,
+        );
+    }
+}
+
+fn equip_rifle(
     //so many queries...
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -320,7 +381,8 @@ fn use_rifle(
             y_offset: 55.0,
             color: Color::BLACK,
             hand1: Vec2::new(0.0, 32.0),
-            hand2: Vec2::new(7.5, 65.0)
+            hand2: Vec2::new(7.5, 65.0),
+            recoil_direction: false,
         };
         let player_entity = player_entity.single();
 
@@ -369,14 +431,51 @@ fn use_rifle(
     }
 }
 
+fn spawn_bullets(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    key_inputs: Res<ButtonInput<MouseButton>>,
+    rifle: Query<&Rifle>,
+    time: Res<Time>,
+    player: Query<&Player>,
+    mut transform_set: ParamSet<(Query<(&mut Transform, &Bullet)>, Query<&mut Transform, With<Player>>)>
+) {
+    let bullet_radius = 5.0;
+    let speed: f32 = 300.0;
+    let player_direction = player.single().direction;
+    let player_position = transform_set.p1().single().translation;
+    if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() {
+        //single shot
+        let bullet_bundle = (
+            Bullet {
+                direction: player_direction.normalize(),
+            },
+            Mesh2d(meshes.add(Circle::new(bullet_radius))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::BLACK))),
+            Transform::from_xyz(player_position.x, player_position.y, player_position.z),
+        );
+        commands.spawn(bullet_bundle);
+    }
+
+    for (mut bullet_transform, bullet) in transform_set.p0().iter_mut() {
+        //despawn bullet after x distance
+        //launch bullet in player_direction vec
+        let z_pos = bullet_transform.translation.z;
+        bullet_transform.translation += speed * bullet.direction.extend(z_pos) * time.delta_secs();
+    }
+}
+
 fn main() {
     App::new()
-        .insert_resource(Map::new_square(50.0, 10))
+        .insert_resource(Map::new_square(250.0, 2))
         .add_systems(Startup, spawn_map)
         .add_systems(Startup, spawn_player)
         .add_systems(Update, move_player)
         .add_systems(Update, rotate_player)
-        .add_systems(Update, use_rifle)
+        .add_systems(Update, equip_rifle)
+        .add_systems(Update, spawn_bullets)
+        //.add_systems(Update, shoot_rifle)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "shooter_2d".to_string(),
