@@ -461,7 +461,7 @@ fn spawn_bullets(
     for (mut bullet_transform, bullet) in transform_set.p0().iter_mut() {
         //despawn bullet after x distance
         //launch bullet in player_direction vec
-        let z_pos = bullet_transform.translation.z;
+        let z_pos = 10.0;
         bullet_transform.translation += speed * bullet.direction.extend(z_pos) * time.delta_secs();
     }
 }
