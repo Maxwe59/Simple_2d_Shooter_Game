@@ -64,7 +64,13 @@ impl Player {
 #[derive(Component, Clone, Copy)]
 struct Rifle {
     length: f32,
+    radius: f32,
     color: Color,
+    y_offset: f32,
+    hand1: Vec2,
+    hand2: Vec2
+
+    
 }
 
 #[derive(Resource)]
@@ -301,26 +307,29 @@ fn use_rifle(
     player_entity: Query<Entity, With<Player>>,
     mut get_hands: Query<&mut Transform, With<Hand>>,
     get_player: Query<&Player>,
+    get_rifle: Query<&Rifle>,
     rifle_entity: Query<Entity, With<Rifle>>,
 ) {
     let new_rifle: Rifle;
-    let hand_position1 = Vec2::new(0.0, 32.0);
-    let hand_position2 = Vec2::new(7.5, 65.0);
 
     //if 1 keybind is pressed: deploy weapon, transform player hands
     if key_inputs.just_pressed(KeyCode::Digit1) && rifle_entity.is_empty() {
         new_rifle = Rifle {
+            radius: 5.5,
             length: 65.0,
+            y_offset: 55.0,
             color: Color::BLACK,
+            hand1: Vec2::new(0.0, 32.0),
+            hand2: Vec2::new(7.5, 65.0)
         };
         let player_entity = player_entity.single();
 
         commands.entity(player_entity).with_children(|parent| {
             parent.spawn((
                 new_rifle,
-                Mesh2d(meshes.add(Capsule2d::new(5.5, new_rifle.length))),
+                Mesh2d(meshes.add(Capsule2d::new(new_rifle.radius, new_rifle.length))),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(new_rifle.color))),
-                Transform::from_xyz(0.0, 55.0, -1.0),
+                Transform::from_xyz(0.0, new_rifle.y_offset, -1.0),
             ));
         });
 
@@ -331,11 +340,11 @@ fn use_rifle(
             let z_pos = hand.translation.z;
             //checks if current hand is right hand
             if player_comp.right_hand.offset == current_hands {
-                hand.translation = hand_position1.extend(z_pos);
+                hand.translation = new_rifle.hand1.extend(z_pos);
             }
             //checks if current hand is left hand
             if player_comp.left_hand.offset == current_hands {
-                hand.translation = hand_position2.extend(z_pos);
+                hand.translation = new_rifle.hand2.extend(z_pos);
             }
         }
     }
@@ -346,12 +355,13 @@ fn use_rifle(
         commands.entity(rifle_despawn).despawn();
 
         //reset hand position
+        let rifle_comp = get_rifle.single();
         for mut hand in get_hands.iter_mut() {
-            if hand_position1 == hand.translation.truncate() {
+            if rifle_comp.hand1 == hand.translation.truncate() {
                 let original_position_left = get_player.single().left_hand.offset;
                 hand.translation = original_position_left.extend(hand.translation.z);
             }
-            if hand_position2 == hand.translation.truncate() {
+            if rifle_comp.hand2 == hand.translation.truncate() {
                 let original_position_right = get_player.single().right_hand.offset;
                 hand.translation = original_position_right.extend(hand.translation.z);
             }
