@@ -1,0 +1,13 @@
+/* TODO:
+components:
+Player(speed, health, size, global_pos, inventory)
+gun(range, fire rate, spread, )
+
+Other implimentations:
+Map rendering, collisions with objects
+*/
+
+/* TODAY'S IMPLIMENTATIONS:
+player hands
+
+*/
