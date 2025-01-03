@@ -434,9 +434,9 @@ fn equip_rifle(
 
 /*
 TODO:
-add spread,
 add bullet drag animation
 add delay to firing/different fire modes
+add flash effect (with bloom)
  */
 fn spawn_bullets(
     mut commands: Commands,
@@ -451,7 +451,7 @@ fn spawn_bullets(
         Query<&mut Transform, With<Player>>,
     )>,
 ) {
-    let bullet_spread = 3.0; //angle of spread (from normal line to farthest angle, so half of full angle)
+    let bullet_spread = 5.0; //angle of spread (from normal line to farthest angle, so half of full angle)
     let bullet_radius = 5.0;
     let bullet_range: f32 = 450.0;
     let bullet_speed: f32 = 600.0;
@@ -484,7 +484,7 @@ fn spawn_bullets(
             bullet_component,
             Mesh2d(meshes.add(Circle::new(bullet_radius))),
             MeshMaterial2d(
-                materials.add(ColorMaterial::from_color(Color::srgba_u8(71, 66, 45, 255))),
+                materials.add(ColorMaterial::from_color(Color::srgba_u8(0, 0, 0, 255))),
             ),
             Transform::from_xyz(
                 bullet_component.spawn_point.x,
