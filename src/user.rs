@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::map;
+use bevy::prelude::*;
 use rand::Rng;
 
 #[derive(Component, Clone, Copy)]
@@ -107,7 +107,6 @@ pub fn spawn_player(
         });
 }
 
-
 pub fn rotate_player(
     mut transform: Query<(&mut Transform, &mut Player)>,
     mut cursor: EventReader<CursorMoved>,
@@ -131,7 +130,6 @@ pub fn rotate_player(
         player.direction = cursor_vec;
     }
 }
-
 
 pub fn move_player(
     mut transform: ParamSet<(

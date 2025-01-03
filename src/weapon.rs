@@ -1,11 +1,10 @@
+use crate::user;
 use bevy::prelude::*;
 use rand::Rng;
-use crate::user;
-
-
 
 #[derive(Component, Clone, Copy)]
 pub struct Rifle {
+    //rifle display settings
     length: f32,
     radius: f32,
     color: Color,
@@ -13,11 +12,15 @@ pub struct Rifle {
     hand1: Vec2,
     hand2: Vec2,
 
+    //rifle stats settings
+    bullet_spread: f32, //angle of spread (from normal line to farthest angle, so half of full angle)
+    bullet_radius: f32,
+    bullet_range: f32,
+    bullet_speed: f32,
+
     //for animation purposes
     recoil_direction: bool,
 }
-
-
 
 #[derive(Component, Clone, Copy)]
 pub struct Bullet {
@@ -25,7 +28,21 @@ pub struct Bullet {
     spawn_point: Vec2,
 }
 
+//spread angle is angle from normal vector, (represents half the total spread angle)
+fn impl_spread(direction: Vec2, spread_angle: f32) -> Vec2 {
+    //randomizes angle for bullet spread
+    let mut rng = rand::thread_rng();
+    let mut rand_angle: f32 = rng.gen_range(-spread_angle..spread_angle);
+    rand_angle = rand_angle.to_radians();
 
+    let mut direction_with_spread = direction.normalize();
+    direction_with_spread.x =
+        (direction_with_spread.x * rand_angle.cos()) - (direction_with_spread.y * rand_angle.sin());
+    direction_with_spread.y =
+        (direction_with_spread.x * rand_angle.sin()) + (direction_with_spread.y * rand_angle.cos());
+
+    return direction_with_spread;
+}
 
 /*
 TODO:
@@ -46,27 +63,16 @@ pub fn spawn_bullets(
         Query<&mut Transform, With<user::Player>>,
     )>,
 ) {
-    let bullet_spread = 5.0; //angle of spread (from normal line to farthest angle, so half of full angle)
-    let bullet_radius = 5.0;
-    let bullet_range: f32 = 450.0;
-    let bullet_speed: f32 = 600.0;
-
-    let player_direction = player.single().direction;
-    let player_position = transform_set.p1().single().translation;
-    //calculates bullet's spread, based on randomized angle given above
-    let mut rng = rand::thread_rng();
-    let mut rand_angle: f32 = rng.gen_range(-bullet_spread..bullet_spread);
-    rand_angle = rand_angle.to_radians();
-    let mut direction_with_spread = player_direction.normalize();
-    direction_with_spread.x =
-        (direction_with_spread.x * rand_angle.cos()) - (direction_with_spread.y * rand_angle.sin());
-    direction_with_spread.y =
-        (direction_with_spread.x * rand_angle.sin()) + (direction_with_spread.y * rand_angle.cos());
 
     //main logic for bullets, when left click is pressed
     if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() {
-        let rifle_info = rifle.single();
-        let scaled_direction = direction_with_spread * (rifle_info.length + (rifle_info.y_offset / 2.0));
+        let rifle_stats = rifle.single();
+        let player_direction = player.single().direction.normalize();
+        let player_position = transform_set.p1().single().translation;
+        let direction_with_spread = impl_spread(player_direction, rifle_stats.bullet_spread);
+
+        let scaled_direction =
+            direction_with_spread * (rifle_stats.length + (rifle_stats.y_offset / 2.0));
         let bullet_component = Bullet {
             direction: direction_with_spread.normalize(),
             spawn_point: Vec2::new(
@@ -77,10 +83,8 @@ pub fn spawn_bullets(
         //single shot
         let bullet_bundle = (
             bullet_component,
-            Mesh2d(meshes.add(Circle::new(bullet_radius))),
-            MeshMaterial2d(
-                materials.add(ColorMaterial::from_color(Color::srgba_u8(0, 0, 0, 255))),
-            ),
+            Mesh2d(meshes.add(Circle::new(rifle_stats.bullet_radius))),
+            MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgba_u8(0, 0, 0, 255)))),
             Transform::from_xyz(
                 bullet_component.spawn_point.x,
                 bullet_component.spawn_point.y,
@@ -91,16 +95,17 @@ pub fn spawn_bullets(
     }
 
     for (bullet_entity, mut bullet_transform, bullet) in transform_set.p0().iter_mut() {
+        let rifle_stats = rifle.single();
         //launch bullet in player_direction vec
-        bullet_transform.translation.x += bullet_speed * bullet.direction.x * time.delta_secs();
-        bullet_transform.translation.y += bullet_speed * bullet.direction.y * time.delta_secs();
+        bullet_transform.translation.x += rifle_stats.bullet_speed * bullet.direction.x * time.delta_secs();
+        bullet_transform.translation.y += rifle_stats.bullet_speed * bullet.direction.y * time.delta_secs();
 
         //calculate the bullet's distance from its spawning point
         let x_displacement = bullet_transform.translation.x - bullet.spawn_point.x;
         let y_displacement = bullet_transform.translation.y - bullet.spawn_point.y;
         let distance_from_spawn =
             ((x_displacement * x_displacement) + (y_displacement * y_displacement)).sqrt();
-        if distance_from_spawn >= bullet_range {
+        if distance_from_spawn >= rifle_stats.bullet_range {
             commands.entity(bullet_entity).despawn();
         }
     }
@@ -130,6 +135,10 @@ pub fn equip_rifle(
             hand1: Vec2::new(0.0, 32.0),
             hand2: Vec2::new(7.5, 65.0),
             recoil_direction: false,
+            bullet_spread: 2.0,
+            bullet_radius: 5.0, 
+            bullet_range: 450.0,
+            bullet_speed: 600.0
         };
         let player_entity = player_entity.single();
 
@@ -177,8 +186,6 @@ pub fn equip_rifle(
         }
     }
 }
-
-
 
 //unfinished function. fix by making rifle child of hands, transforming hands
 fn shoot_rifle(

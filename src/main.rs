@@ -6,9 +6,6 @@ mod map;
 mod user;
 mod weapon;
 
-
-
-
 fn main() {
     App::new()
         .insert_resource(map::Map::new_square(250.0, 2))

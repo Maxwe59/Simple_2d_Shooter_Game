@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-
 #[derive(Resource)]
 pub struct Map {
     grid_size: Vec2, //size of individual grid on the map
@@ -49,9 +48,6 @@ impl Map {
         //should populate self.grid with coordinates for each rectangle
     }
 }
-
-
-
 
 //spawn map
 pub fn spawn_map(
