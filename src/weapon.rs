@@ -18,6 +18,7 @@ pub struct Rifle {
     bullet_radius: f32,
     bullet_range: f32,
     bullet_speed: f32,
+    fire_rate: f32, //lower value is faster fire rate, measured in delay between shots (sec)
 
     //for animation purposes
     recoil_direction: bool,
@@ -154,14 +155,15 @@ pub fn equip_rifle(
             bullet_spread: 2.0,
             bullet_radius: 5.0, 
             bullet_range: 450.0,
-            bullet_speed: 1000.0
+            bullet_speed: 1000.0,
+            fire_rate: 0.15
         };
         let player_entity = player_entity.single();
 
         commands.entity(player_entity).with_children(|parent| {
             parent.spawn((
                 new_rifle,
-                FireRateTimer::new(0.25),
+                FireRateTimer::new(new_rifle.fire_rate),
                 Mesh2d(meshes.add(Capsule2d::new(new_rifle.radius, new_rifle.length))),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(new_rifle.color))),
                 Transform::from_xyz(0.0, new_rifle.y_offset, -1.0),
