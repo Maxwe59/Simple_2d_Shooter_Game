@@ -1,6 +1,7 @@
 use crate::user;
 use bevy::prelude::*;
 use rand::Rng;
+use bevy::utils::Duration;
 
 #[derive(Component, Clone, Copy)]
 pub struct Rifle {
@@ -20,6 +21,14 @@ pub struct Rifle {
 
     //for animation purposes
     recoil_direction: bool,
+}
+#[derive(Component)]
+pub struct FireRateTimer(Timer);
+
+impl FireRateTimer{
+    fn new(shoot_delay: f32)->Self{
+        return FireRateTimer(Timer::new(Duration::from_secs_f32(shoot_delay), TimerMode::Repeating));
+    }
 }
 
 #[derive(Component, Clone, Copy)]
@@ -57,15 +66,21 @@ pub fn spawn_bullets(
     key_inputs: Res<ButtonInput<MouseButton>>,
     rifle: Query<&Rifle>,
     time: Res<Time>,
+    mut fire_rate: Query<&mut FireRateTimer>,
     player: Query<&user::Player>,
     mut transform_set: ParamSet<(
         Query<(Entity, &mut Transform, &Bullet)>,
         Query<&mut Transform, With<user::Player>>,
     )>,
 ) {
+    //reset the timer once the rifle is despawned as well
+    if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() && !fire_rate.is_empty(){
+        fire_rate.single_mut().0.tick(time.delta());
+    }
 
     //main logic for bullets, when left click is pressed
-    if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() {
+    if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() && fire_rate.single().0.just_finished(){
+                
         let rifle_stats = rifle.single();
         let player_direction = player.single().direction.normalize();
         let player_position = transform_set.p1().single().translation;
@@ -122,6 +137,7 @@ pub fn equip_rifle(
     get_player: Query<&user::Player>,
     get_rifle: Query<&Rifle>,
     rifle_entity: Query<Entity, With<Rifle>>,
+    mut fire_rate: Query<&mut FireRateTimer>
 ) {
     let new_rifle: Rifle;
 
@@ -138,13 +154,14 @@ pub fn equip_rifle(
             bullet_spread: 2.0,
             bullet_radius: 5.0, 
             bullet_range: 450.0,
-            bullet_speed: 600.0
+            bullet_speed: 1000.0
         };
         let player_entity = player_entity.single();
 
         commands.entity(player_entity).with_children(|parent| {
             parent.spawn((
                 new_rifle,
+                FireRateTimer::new(0.25),
                 Mesh2d(meshes.add(Capsule2d::new(new_rifle.radius, new_rifle.length))),
                 MeshMaterial2d(materials.add(ColorMaterial::from_color(new_rifle.color))),
                 Transform::from_xyz(0.0, new_rifle.y_offset, -1.0),
@@ -171,6 +188,9 @@ pub fn equip_rifle(
         //despawn entity
         let rifle_despawn = rifle_entity.single();
         commands.entity(rifle_despawn).despawn();
+
+        //reset rifle firerate timer
+        fire_rate.single_mut().0.reset();
 
         //reset hand position
         let rifle_comp = get_rifle.single();

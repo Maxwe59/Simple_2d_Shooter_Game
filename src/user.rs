@@ -7,10 +7,10 @@ pub struct Player {
     speed: f32,
     size: f32,
     hand_size: f32,
+    body_color: Color,
     pub direction: Vec2,
     pub left_hand: Hand,
     pub right_hand: Hand,
-    body_color: Color,
 }
 
 impl Player {
@@ -38,6 +38,18 @@ impl Player {
             body_color: body_colour,
         }
     }
+    //Make setter methods for changing player stats (speed, size)
+    /*
+    fn fists_mode(&mut self, mut hand_transform: Query<&mut Transform, With<Hand>>){
+        self.speed = 200.0;
+        self.size = 30.0;
+        self.hand_size = self.size/3.0;
+        self.body_color = Color::srgb(0.2, 0.2, 0.2);
+        self.left_hand = Hand{offset: Vec2::new(), color: Color::BLACK};
+
+
+    }
+     */
 }
 
 #[derive(Component, Clone, Copy)]
@@ -45,6 +57,7 @@ pub struct Hand {
     pub offset: Vec2,
     color: Color,
 }
+
 
 pub fn spawn_player(
     mut commands: Commands,
