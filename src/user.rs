@@ -14,16 +14,14 @@ pub struct Player {
 }
 
 impl Player {
-    fn new_symetric(
-        speed: f32,
-        size: f32,
-        x_offset: f32,
-        y_offset: f32,
-        body_colour: Color,
-        hand_colour: Color,
-    ) -> Self {
+    fn new_symetric() -> Self {
+        let size = 30.0;
+        let x_offset = 23.0;
+        let y_offset = 20.0;
+        let hand_colour = Color::BLACK;
+        let body_colour = Color::srgb(0.2, 0.2, 0.2);
         Player {
-            speed: speed,
+            speed: 200.0,
             size: size,
             hand_size: size / 3.0,
             direction: Vec2::new(0.0, 1.0),
@@ -39,17 +37,30 @@ impl Player {
         }
     }
     //Make setter methods for changing player stats (speed, size)
-    /*
-    fn fists_mode(&mut self, mut hand_transform: Query<&mut Transform, With<Hand>>){
+
+    fn fists_mode(&mut self, mut hand_transform: Query<&mut Transform, With<Hand>>) {
+        self.direction = self.direction; //do not change
         self.speed = 200.0;
         self.size = 30.0;
-        self.hand_size = self.size/3.0;
+        self.hand_size = self.size / 3.0;
         self.body_color = Color::srgb(0.2, 0.2, 0.2);
-        self.left_hand = Hand{offset: Vec2::new(), color: Color::BLACK};
+        self.left_hand = Hand {
+            offset: Vec2::new(-23.0, 20.0),
+            color: Color::BLACK,
+        };
+        self.right_hand = Hand {
+            offset: Vec2::new(23.0, 20.0),
+            color: Color::BLACK,
+        };
 
-
+        for (index, mut hand) in hand_transform.iter_mut().enumerate() {
+            hand.translation = if (index == 0) {
+                self.left_hand.offset.extend(1.0)
+            } else {
+                self.right_hand.offset.extend(1.0)
+            };
+        }
     }
-     */
 }
 
 #[derive(Component, Clone, Copy)]
@@ -57,7 +68,6 @@ pub struct Hand {
     pub offset: Vec2,
     color: Color,
 }
-
 
 pub fn spawn_player(
     mut commands: Commands,
@@ -77,8 +87,7 @@ pub fn spawn_player(
         Camera2d::default(),
         Transform::from_xyz(rand_coords.x, rand_coords.y, 0.0),
     ));
-    let player_color = Color::srgb(0.2, 0.2, 0.2);
-    let player_comp = Player::new_symetric(200.0, 30.0, 23.0, 20.0, player_color, Color::BLACK);
+    let player_comp = Player::new_symetric();
     commands
         .spawn((
             player_comp,

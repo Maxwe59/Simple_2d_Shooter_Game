@@ -1,7 +1,7 @@
 use crate::user;
 use bevy::prelude::*;
-use rand::Rng;
 use bevy::utils::Duration;
+use rand::Rng;
 
 #[derive(Component, Clone, Copy)]
 pub struct Rifle {
@@ -26,9 +26,12 @@ pub struct Rifle {
 #[derive(Component)]
 pub struct FireRateTimer(Timer);
 
-impl FireRateTimer{
-    fn new(shoot_delay: f32)->Self{
-        return FireRateTimer(Timer::new(Duration::from_secs_f32(shoot_delay), TimerMode::Repeating));
+impl FireRateTimer {
+    fn new(shoot_delay: f32) -> Self {
+        return FireRateTimer(Timer::new(
+            Duration::from_secs_f32(shoot_delay),
+            TimerMode::Repeating,
+        ));
     }
 }
 
@@ -36,6 +39,8 @@ impl FireRateTimer{
 pub struct Bullet {
     direction: Vec2,
     spawn_point: Vec2,
+    range: f32,
+    speed: f32
 }
 
 //spread angle is angle from normal vector, (represents half the total spread angle)
@@ -75,13 +80,15 @@ pub fn spawn_bullets(
     )>,
 ) {
     //reset the timer once the rifle is despawned as well
-    if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() && !fire_rate.is_empty(){
+    if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() && !fire_rate.is_empty() {
         fire_rate.single_mut().0.tick(time.delta());
     }
 
     //main logic for bullets, when left click is pressed
-    if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() && fire_rate.single().0.just_finished(){
-                
+    if key_inputs.pressed(MouseButton::Left)
+        && !rifle.is_empty()
+        && fire_rate.single().0.just_finished()
+    {
         let rifle_stats = rifle.single();
         let player_direction = player.single().direction.normalize();
         let player_position = transform_set.p1().single().translation;
@@ -95,6 +102,8 @@ pub fn spawn_bullets(
                 player_position.x + scaled_direction.x,
                 player_position.y + scaled_direction.y,
             ),
+            range: rifle_stats.bullet_range,
+            speed: rifle_stats.bullet_speed
         };
         //single shot
         let bullet_bundle = (
@@ -111,17 +120,18 @@ pub fn spawn_bullets(
     }
 
     for (bullet_entity, mut bullet_transform, bullet) in transform_set.p0().iter_mut() {
-        let rifle_stats = rifle.single();
         //launch bullet in player_direction vec
-        bullet_transform.translation.x += rifle_stats.bullet_speed * bullet.direction.x * time.delta_secs();
-        bullet_transform.translation.y += rifle_stats.bullet_speed * bullet.direction.y * time.delta_secs();
+        bullet_transform.translation.x +=
+            bullet.speed * bullet.direction.x * time.delta_secs();
+        bullet_transform.translation.y +=
+        bullet.speed * bullet.direction.y * time.delta_secs();
 
         //calculate the bullet's distance from its spawning point
         let x_displacement = bullet_transform.translation.x - bullet.spawn_point.x;
         let y_displacement = bullet_transform.translation.y - bullet.spawn_point.y;
         let distance_from_spawn =
             ((x_displacement * x_displacement) + (y_displacement * y_displacement)).sqrt();
-        if distance_from_spawn >= rifle_stats.bullet_range {
+        if distance_from_spawn >= bullet.range {
             commands.entity(bullet_entity).despawn();
         }
     }
@@ -138,7 +148,7 @@ pub fn equip_rifle(
     get_player: Query<&user::Player>,
     get_rifle: Query<&Rifle>,
     rifle_entity: Query<Entity, With<Rifle>>,
-    mut fire_rate: Query<&mut FireRateTimer>
+    mut fire_rate: Query<&mut FireRateTimer>,
 ) {
     let new_rifle: Rifle;
 
@@ -153,10 +163,10 @@ pub fn equip_rifle(
             hand2: Vec2::new(7.5, 65.0),
             recoil_direction: false,
             bullet_spread: 2.0,
-            bullet_radius: 5.0, 
+            bullet_radius: 5.0,
             bullet_range: 450.0,
             bullet_speed: 1000.0,
-            fire_rate: 0.15
+            fire_rate: 0.15,
         };
         let player_entity = player_entity.single();
 
