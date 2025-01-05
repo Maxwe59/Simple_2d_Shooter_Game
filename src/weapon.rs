@@ -29,11 +29,15 @@ pub struct FireRateTimer(Timer);
 
 impl FireRateTimer {
     fn new(shoot_delay: f32) -> Self {
-        return FireRateTimer(Timer::new(
+        let mut temp_timer = Timer::new(
             Duration::from_secs_f32(shoot_delay),
             TimerMode::Once,
-        ));
+        );
+        temp_timer.set_elapsed(Duration::from_secs_f32(shoot_delay));
+
+        return FireRateTimer(temp_timer);
     }
+
 }
 
 #[derive(Component, Clone, Copy)]
@@ -164,11 +168,11 @@ pub fn equip_rifle(
             hand1: Vec2::new(0.0, 32.0),
             hand2: Vec2::new(7.5, 65.0),
             recoil_direction: false,
-            bullet_spread: 3.0,
+            bullet_spread: 4.0,
             bullet_radius: 5.0,
             bullet_range: 1000.0,
             bullet_speed: 1000.0,
-            fire_rate: 0.09,
+            fire_rate: 0.09
         };
         let player_entity = player_entity.single();
 
@@ -181,7 +185,6 @@ pub fn equip_rifle(
                 Transform::from_xyz(0.0, new_rifle.y_offset, -1.0),
             ));
         });
-
         //switch hand orientation
         let player_comp = get_player.single();
         for mut hand in get_hands.iter_mut() {
@@ -196,6 +199,7 @@ pub fn equip_rifle(
                 hand.translation = new_rifle.hand2.extend(z_pos);
             }
         }
+        
     }
     //if 1 keybind is pressed and weapon is deployed: revert to default transform
     else if (key_inputs.just_pressed(KeyCode::Digit1)) && (!rifle_entity.is_empty()) {
