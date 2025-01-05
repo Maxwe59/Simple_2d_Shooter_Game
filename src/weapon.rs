@@ -133,11 +133,10 @@ pub fn spawn_bullets(
         let distance_from_spawn =
             ((x_displacement * x_displacement) + (y_displacement * y_displacement)).sqrt();
         if distance_from_spawn >= bullet.range {
-            commands.entity(bullet_entity).despawn();
+            commands.entity(bullet_entity).despawn_recursive();
         }
     }
 }
-
 
 
 pub fn equip_rifle(
@@ -167,7 +166,7 @@ pub fn equip_rifle(
             recoil_direction: false,
             bullet_spread: 2.0,
             bullet_radius: 5.0,
-            bullet_range: 200.0,
+            bullet_range: 1000.0,
             bullet_speed: 1000.0,
             fire_rate: 0.08,
         };
@@ -286,6 +285,7 @@ pub fn bullet_drag(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
+
     //spawn bullet pieces only under certain conditions
     for (bullet_entity, bullet_transform, bullet) in bullet_query.iter_mut() {
         let x_translation = bullet_transform.translation.x;
@@ -304,9 +304,9 @@ pub fn bullet_drag(
                         0.0,
                         0.0,
                         0.0,
-                        1.0 - (((i as f32)/(max_drag as f32))),
+                        1.0/(i as f32), //(((i as f32)/(max_drag as f32)))
                     )))),
-                    Transform::from_xyz(drag_pos.x, drag_pos.y, 0.0),
+                    Transform::from_xyz(drag_pos.x, drag_pos.y, 0.0), 
                 );
                 commands.entity(bullet_entity).with_child(drag_piece_bundle);
             }
