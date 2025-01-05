@@ -26,6 +26,7 @@ pub struct Rifle {
 #[derive(Component)]
 pub struct FireRateTimer(Timer);
 
+
 impl FireRateTimer {
     fn new(shoot_delay: f32) -> Self {
         return FireRateTimer(Timer::new(
@@ -40,7 +41,8 @@ pub struct Bullet {
     direction: Vec2,
     spawn_point: Vec2,
     range: f32,
-    speed: f32
+    speed: f32,
+    radius: f32,
 }
 
 //spread angle is angle from normal vector, (represents half the total spread angle)
@@ -103,7 +105,8 @@ pub fn spawn_bullets(
                 player_position.y + scaled_direction.y,
             ),
             range: rifle_stats.bullet_range,
-            speed: rifle_stats.bullet_speed
+            speed: rifle_stats.bullet_speed,
+            radius: rifle_stats.radius,
         };
         //single shot
         let bullet_bundle = (
@@ -121,10 +124,8 @@ pub fn spawn_bullets(
 
     for (bullet_entity, mut bullet_transform, bullet) in transform_set.p0().iter_mut() {
         //launch bullet in player_direction vec
-        bullet_transform.translation.x +=
-            bullet.speed * bullet.direction.x * time.delta_secs();
-        bullet_transform.translation.y +=
-        bullet.speed * bullet.direction.y * time.delta_secs();
+        bullet_transform.translation.x += bullet.speed * bullet.direction.x * time.delta_secs();
+        bullet_transform.translation.y += bullet.speed * bullet.direction.y * time.delta_secs();
 
         //calculate the bullet's distance from its spawning point
         let x_displacement = bullet_transform.translation.x - bullet.spawn_point.x;
@@ -136,6 +137,8 @@ pub fn spawn_bullets(
         }
     }
 }
+
+
 
 pub fn equip_rifle(
     //so many queries...
@@ -164,9 +167,9 @@ pub fn equip_rifle(
             recoil_direction: false,
             bullet_spread: 2.0,
             bullet_radius: 5.0,
-            bullet_range: 450.0,
+            bullet_range: 200.0,
             bullet_speed: 1000.0,
-            fire_rate: 0.15,
+            fire_rate: 0.08,
         };
         let player_entity = player_entity.single();
 
@@ -273,3 +276,49 @@ fn shoot_rifle(
         );
     }
 }
+
+
+
+//fix later. improperly working
+pub fn bullet_drag(
+    mut bullet_query: Query<(Entity, &mut Transform, &Bullet)>,
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    //spawn bullet pieces only under certain conditions
+    for (bullet_entity, bullet_transform, bullet) in bullet_query.iter_mut() {
+        let x_translation = bullet_transform.translation.x;
+        let y_translation = bullet_transform.translation.y;
+        if x_translation >= bullet.spawn_point.x - 1.0
+            && 1.0 + bullet.spawn_point.x >= x_translation &&
+            y_translation >= bullet.spawn_point.y - 1.0
+            && 1.0 + bullet.spawn_point.y >= y_translation
+        {
+            let max_drag = 80;
+            for i in 1..max_drag-1 {
+                let drag_pos =  - ((i as f32) * 2.0 * bullet.direction.normalize());
+                let drag_piece_bundle = (
+                    Mesh2d(meshes.add(Circle::new(bullet.radius))),
+                    MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgba(
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0 - (((i as f32)/(max_drag as f32))),
+                    )))),
+                    Transform::from_xyz(drag_pos.x, drag_pos.y, 0.0),
+                );
+                commands.entity(bullet_entity).with_child(drag_piece_bundle);
+            }
+        }
+        
+    }
+
+    
+}
+
+/*
+
+for particle in drag_particles.iter_mut(){
+        commands.entity(particle).despawn();
+    }*/

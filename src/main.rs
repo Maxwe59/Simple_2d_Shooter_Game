@@ -15,6 +15,7 @@ fn main() {
         .add_systems(Update, user::rotate_player)
         .add_systems(Update, weapon::equip_rifle)
         .add_systems(Update, weapon::spawn_bullets)
+        .add_systems(Update, weapon::bullet_drag)
         //.add_systems(Update, shoot_rifle)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
