@@ -31,7 +31,7 @@ impl FireRateTimer {
     fn new(shoot_delay: f32) -> Self {
         return FireRateTimer(Timer::new(
             Duration::from_secs_f32(shoot_delay),
-            TimerMode::Repeating,
+            TimerMode::Once,
         ));
     }
 }
@@ -82,15 +82,15 @@ pub fn spawn_bullets(
     )>,
 ) {
     //reset the timer once the rifle is despawned as well
-    if key_inputs.pressed(MouseButton::Left) && !rifle.is_empty() && !fire_rate.is_empty() {
+    if !rifle.is_empty() && !fire_rate.is_empty() {
         fire_rate.single_mut().0.tick(time.delta());
     }
 
     //main logic for bullets, when left click is pressed
     if key_inputs.pressed(MouseButton::Left)
-        && !rifle.is_empty()
-        && fire_rate.single().0.just_finished()
+        && !rifle.is_empty() && fire_rate.single().0.finished()
     {
+        fire_rate.single_mut().0.reset();
         let rifle_stats = rifle.single();
         let player_direction = player.single().direction.normalize();
         let player_position = transform_set.p1().single().translation;
@@ -164,11 +164,11 @@ pub fn equip_rifle(
             hand1: Vec2::new(0.0, 32.0),
             hand2: Vec2::new(7.5, 65.0),
             recoil_direction: false,
-            bullet_spread: 2.0,
+            bullet_spread: 3.0,
             bullet_radius: 5.0,
             bullet_range: 1000.0,
             bullet_speed: 1000.0,
-            fire_rate: 0.08,
+            fire_rate: 0.09,
         };
         let player_entity = player_entity.single();
 
