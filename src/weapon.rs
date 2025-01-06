@@ -23,6 +23,25 @@ pub struct Rifle {
     //for animation purposes
     recoil_direction: bool,
 }
+
+impl Rifle{
+    fn assault_rifle()->Self{
+        return Rifle {
+            radius: 5.5,
+            length: 65.0,
+            y_offset: 55.0,
+            color: Color::BLACK,
+            hand1: Vec2::new(0.0, 32.0),
+            hand2: Vec2::new(7.5, 65.0),
+            recoil_direction: false,
+            bullet_spread: 4.0,
+            bullet_radius: 5.0,
+            bullet_range: 1000.0,
+            bullet_speed: 1000.0,
+            fire_rate: 0.09
+        };
+    }
+}
 #[derive(Component)]
 pub struct FireRateTimer(Timer);
 
@@ -151,7 +170,7 @@ pub fn equip_rifle(
     key_inputs: Res<ButtonInput<KeyCode>>,
     player_entity: Query<Entity, With<user::Player>>,
     mut get_hands: Query<&mut Transform, With<user::Hand>>,
-    get_player: Query<&user::Player>,
+    mut get_player: Query<&mut user::Player>,
     get_rifle: Query<&Rifle>,
     rifle_entity: Query<Entity, With<Rifle>>,
     mut fire_rate: Query<&mut FireRateTimer>,
@@ -160,20 +179,7 @@ pub fn equip_rifle(
 
     //if 1 keybind is pressed: deploy weapon, transform player hands
     if key_inputs.just_pressed(KeyCode::Digit1) && rifle_entity.is_empty() {
-        new_rifle = Rifle {
-            radius: 5.5,
-            length: 65.0,
-            y_offset: 55.0,
-            color: Color::BLACK,
-            hand1: Vec2::new(0.0, 32.0),
-            hand2: Vec2::new(7.5, 65.0),
-            recoil_direction: false,
-            bullet_spread: 4.0,
-            bullet_radius: 5.0,
-            bullet_range: 1000.0,
-            bullet_speed: 1000.0,
-            fire_rate: 0.09
-        };
+        new_rifle = Rifle::assault_rifle();
         let player_entity = player_entity.single();
 
         commands.entity(player_entity).with_children(|parent| {
@@ -186,7 +192,8 @@ pub fn equip_rifle(
             ));
         });
         //switch hand orientation
-        let player_comp = get_player.single();
+        
+        let mut player_comp = get_player.single_mut();
         for mut hand in get_hands.iter_mut() {
             let current_hands = hand.translation.truncate(); //converts to Vec2
             let z_pos = hand.translation.z;
@@ -211,22 +218,51 @@ pub fn equip_rifle(
         fire_rate.single_mut().0.reset();
 
         //reset hand position
-        let rifle_comp = get_rifle.single();
-        for mut hand in get_hands.iter_mut() {
-            if rifle_comp.hand1 == hand.translation.truncate() {
-                let original_position_left = get_player.single().left_hand.offset;
-                hand.translation = original_position_left.extend(hand.translation.z);
-            }
-            if rifle_comp.hand2 == hand.translation.truncate() {
-                let original_position_right = get_player.single().right_hand.offset;
-                hand.translation = original_position_right.extend(hand.translation.z);
-            }
-        }
+        get_player.single_mut().fists_mode(get_hands);
     }
 }
 
+
+pub fn bullet_drag(
+    mut bullet_query: Query<(Entity, &mut Transform, &Bullet)>,
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+
+    //spawn bullet pieces only under certain conditions
+    for (bullet_entity, bullet_transform, bullet) in bullet_query.iter_mut() {
+        let x_translation = bullet_transform.translation.x;
+        let y_translation = bullet_transform.translation.y;
+        if x_translation >= bullet.spawn_point.x - 1.0
+            && 1.0 + bullet.spawn_point.x >= x_translation &&
+            y_translation >= bullet.spawn_point.y - 1.0
+            && 1.0 + bullet.spawn_point.y >= y_translation
+        {
+            let max_drag = 80;
+            for i in 1..max_drag-1 {
+                let drag_pos =  - ((i as f32) * 2.0 * bullet.direction.normalize());
+                let drag_piece_bundle = (
+                    Mesh2d(meshes.add(Circle::new(bullet.radius))),
+                    MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgba(
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0/(i as f32), //(((i as f32)/(max_drag as f32)))
+                    )))),
+                    Transform::from_xyz(drag_pos.x, drag_pos.y, 0.0), 
+                );
+                commands.entity(bullet_entity).with_child(drag_piece_bundle);
+            }
+        }
+        
+    }
+
+    
+}
+
 //unfinished function. fix by making rifle child of hands, transforming hands
-fn shoot_rifle(
+pub fn shoot_rifle(
     mut rifle_transform: Query<(&mut Transform, &mut Rifle)>,
     rifle_entity: Query<Entity, With<Rifle>>,
     hand_entities: Query<Entity, With<user::Hand>>,
@@ -281,48 +317,3 @@ fn shoot_rifle(
 }
 
 
-
-//fix later. improperly working
-pub fn bullet_drag(
-    mut bullet_query: Query<(Entity, &mut Transform, &Bullet)>,
-    mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-) {
-
-    //spawn bullet pieces only under certain conditions
-    for (bullet_entity, bullet_transform, bullet) in bullet_query.iter_mut() {
-        let x_translation = bullet_transform.translation.x;
-        let y_translation = bullet_transform.translation.y;
-        if x_translation >= bullet.spawn_point.x - 1.0
-            && 1.0 + bullet.spawn_point.x >= x_translation &&
-            y_translation >= bullet.spawn_point.y - 1.0
-            && 1.0 + bullet.spawn_point.y >= y_translation
-        {
-            let max_drag = 80;
-            for i in 1..max_drag-1 {
-                let drag_pos =  - ((i as f32) * 2.0 * bullet.direction.normalize());
-                let drag_piece_bundle = (
-                    Mesh2d(meshes.add(Circle::new(bullet.radius))),
-                    MeshMaterial2d(materials.add(ColorMaterial::from_color(Color::srgba(
-                        0.0,
-                        0.0,
-                        0.0,
-                        1.0/(i as f32), //(((i as f32)/(max_drag as f32)))
-                    )))),
-                    Transform::from_xyz(drag_pos.x, drag_pos.y, 0.0), 
-                );
-                commands.entity(bullet_entity).with_child(drag_piece_bundle);
-            }
-        }
-        
-    }
-
-    
-}
-
-/*
-
-for particle in drag_particles.iter_mut(){
-        commands.entity(particle).despawn();
-    }*/

@@ -38,7 +38,7 @@ impl Player {
     }
     //Make setter methods for changing player stats (speed, size)
 
-    fn fists_mode(&mut self, mut hand_transform: Query<&mut Transform, With<Hand>>) {
+    pub fn fists_mode(&mut self, mut hand_transform: Query<&mut Transform, With<Hand>>) {
         self.direction = self.direction; //do not change
         self.speed = 200.0;
         self.size = 30.0;
@@ -54,10 +54,11 @@ impl Player {
         };
 
         for (index, mut hand) in hand_transform.iter_mut().enumerate() {
-            hand.translation = if (index == 0) {
-                self.left_hand.offset.extend(1.0)
+            let z_pos = hand.translation.z;
+            hand.translation = if index == 0 {
+                self.left_hand.offset.extend(z_pos)
             } else {
-                self.right_hand.offset.extend(1.0)
+                self.right_hand.offset.extend(z_pos)
             };
         }
     }
