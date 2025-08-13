@@ -1,5 +1,7 @@
 # A simple top-down 2d shooter game created in bevy.
 ![App demo](./demo_pics/shoot.png)
+[Watch demo](./demo_pics/vid.mp4)
+
 # Game functionalities:
 
   ### Player functionalities:
